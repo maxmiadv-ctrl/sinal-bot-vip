@@ -1,3 +1,5 @@
+// index.js — Com delay 30s
+
 require('dotenv').config();
 const { fetchKlines } = require('./fetcher');
 const { analyzeVIP, analyzeFree } = require('./analyzer');
@@ -21,7 +23,6 @@ if (DISCORD_TOKEN && DISCORD_VIP_CHANNEL_ID) {
   discordClient.on('ready', () => {
     console.log(`🤖 DISCORD VIP CONECTADO COM SUCESSO como ${discordClient.user.tag}!`);
     console.log(`Canal VIP configurado: ${DISCORD_VIP_CHANNEL_ID}`);
-    // Removi o sendMessage aqui pra não enviar "BOT VIP ONLINE" toda vez
   });
 } else {
   console.log("⚠️ Discord VIP não configurado no .env");
@@ -84,6 +85,7 @@ async function analyzePair(pair) {
       console.log(`📢 FREE ENVIADO (${freeCount}/${MAX_FREE}) | ${pair}`);
     }
   }
+  await new Promise(r => setTimeout(r, 30000)); // Delay 30s entre análise
 }
 
 async function main() {
@@ -100,7 +102,6 @@ async function main() {
 
     await analyzePair(pool[index]);
     index++;
-    await new Promise(r => setTimeout(r, 30000)); // Delay 30s entre análise pra não flood
   }
 }
 
