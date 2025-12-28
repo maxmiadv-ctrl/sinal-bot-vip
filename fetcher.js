@@ -1,4 +1,4 @@
-// fetcher.js — Binance primeiro, fallback Bybit em qualquer erro (451, 400, timeout)
+// fetcher.js — Binance primeiro, fallback Bybit em qualquer erro (451, timeout, network)
 
 const axios = require("axios");
 
@@ -15,16 +15,29 @@ function mapIntervalBybit(tf) {
   return map[tf] || "15";
 }
 
-function normalizeKlines(raw) {
+function normalizeKlines(raw, source = "BINANCE") {
   if (!raw || !Array.isArray(raw)) return [];
-  return raw.map(r => ({
-    time: Number(r[0]),
-    open: Number(r[1]),
-    high: Number(r[2]),
-    low: Number(r[3]),
-    close: Number(r[4]),
-    volume: Number(r[5]),
-  }));
+  if (source === "BINANCE") {
+    return raw.map(r => ({
+      time: Number(r[0]),
+      open: Number(r[1]),
+      high: Number(r[2]),
+      low: Number(r[3]),
+      close: Number(r[4]),
+      volume: Number(r[5]),
+    }));
+  }
+  if (source === "BYBIT") {
+    return raw.map(r => ({
+      time: Number(r[0]),
+      open: Number(r[1]),
+      high: Number(r[2]),
+      low: Number(r[3]),
+      close: Number(r[4]),
+      volume: Number(r[5]),
+    }));
+  }
+  return [];
 }
 
 async function fetchKlines(symbol, tf, limit = 500, exchange = "BINANCE") {
@@ -35,16 +48,16 @@ async function fetchKlines(symbol, tf, limit = 500, exchange = "BINANCE") {
     try {
       const { data } = await axios.get(`${BINANCE_FAPI}/fapi/v1/klines`, {
         params: { symbol, interval, limit: safeLimit },
-        timeout: 20000
+        timeout: 15000
       });
-      const klines = normalizeKlines(data);
+      const klines = normalizeKlines(data, "BINANCE");
       console.log(`✅ Binance ${symbol} ${tf}: ${klines.length} candles`);
       return klines;
     } catch (err) {
-      const status = err.response?.status || err.code || 'desconhecido';
-      console.log(`❌ Binance erro ${symbol} ${tf}: ${status}`);
-      console.log(`🔄 Fallback Bybit ${symbol} ${tf}`);
-      return fetchKlines(symbol, tf, limit, "BYBIT"); // fallback em qualquer erro
+      const status = err.response?.status || err.code || 'unknown';
+      console.log(`❌ Binance erro ${symbol} ${tf}: ${status} - ${err.message}`);
+      console.log(`🔄 Fallback automático pra Bybit ${symbol} ${tf}`);
+      return fetchKlines(symbol, tf, limit, "BYBIT");
     }
   }
 
@@ -53,9 +66,9 @@ async function fetchKlines(symbol, tf, limit = 500, exchange = "BINANCE") {
     try {
       const { data } = await axios.get(`${BYBIT_API}/v5/market/kline`, {
         params: { category: 'linear', symbol, interval, limit: safeLimit },
-        timeout: 20000
+        timeout: 15000
       });
-      const klines = normalizeKlines(data.result.list);
+      const klines = normalizeKlines(data.result.list, "BYBIT");
       console.log(`✅ Bybit ${symbol} ${tf}: ${klines.length} candles`);
       return klines;
     } catch (err) {
