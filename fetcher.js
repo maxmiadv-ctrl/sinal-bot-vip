@@ -1,4 +1,4 @@
-// fetcher.js — Binance primeiro, fallback Bybit em qualquer erro (451, timeout, network)
+// fetcher.js — Binance primeiro, fallback Bybit em qualquer erro (451, timeout, network, etc.)
 
 const axios = require("axios");
 
@@ -55,8 +55,9 @@ async function fetchKlines(symbol, tf, limit = 500, exchange = "BINANCE") {
       return klines;
     } catch (err) {
       const status = err.response?.status || err.code || 'unknown';
-      console.log(`❌ Binance erro ${symbol} ${tf}: ${status} - ${err.message}`);
-      console.log(`🔄 Fallback automático pra Bybit ${symbol} ${tf}`);
+      const message = err.message || '';
+      console.log(`❌ Binance erro ${symbol} ${tf}: status ${status} - ${message}`);
+      console.log(`🔄 Fallback automático pra Bybit ${symbol} ${tf} (motivo: erro Binance)`);
       return fetchKlines(symbol, tf, limit, "BYBIT");
     }
   }
@@ -68,11 +69,16 @@ async function fetchKlines(symbol, tf, limit = 500, exchange = "BINANCE") {
         params: { category: 'linear', symbol, interval, limit: safeLimit },
         timeout: 15000
       });
+      if (!data.result || !data.result.list) {
+        console.log(`❌ Bybit resposta inválida ${symbol} ${tf}`);
+        return [];
+      }
       const klines = normalizeKlines(data.result.list, "BYBIT");
       console.log(`✅ Bybit ${symbol} ${tf}: ${klines.length} candles`);
       return klines;
     } catch (err) {
-      console.log(`❌ Bybit erro ${symbol} ${tf}: ${err.message}`);
+      const message = err.message || '';
+      console.log(`❌ Bybit erro ${symbol} ${tf}: ${message}`);
       return [];
     }
   }
