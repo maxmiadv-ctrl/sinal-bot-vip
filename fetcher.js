@@ -1,4 +1,4 @@
-// fetcher.js — Binance primeiro, fallback Bybit se erro 451
+// fetcher.js — Binance primeiro, fallback Bybit em qualquer erro (451, 400, timeout)
 
 const axios = require("axios");
 
@@ -6,26 +6,12 @@ const BINANCE_FAPI = "https://fapi.binance.com";
 const BYBIT_API = "https://api.bybit.com";
 
 function mapIntervalBinance(tf) {
-  const map = {
-    "5m": "5m",
-    "15m": "15m",
-    "1h": "1h",
-    "2h": "2h",
-    "4h": "4h",
-    "1d": "1d"
-  };
+  const map = { "5m": "5m", "15m": "15m", "1h": "1h", "2h": "2h", "4h": "4h", "1d": "1d" };
   return map[tf] || "15m";
 }
 
 function mapIntervalBybit(tf) {
-  const map = {
-    "5m": "5",
-    "15m": "15",
-    "1h": "60",
-    "2h": "120",
-    "4h": "240",
-    "1d": "D"
-  };
+  const map = { "5m": "5", "15m": "15", "1h": "60", "2h": "120", "4h": "240", "1d": "D" };
   return map[tf] || "15";
 }
 
@@ -52,16 +38,13 @@ async function fetchKlines(symbol, tf, limit = 500, exchange = "BINANCE") {
         timeout: 20000
       });
       const klines = normalizeKlines(data);
-      console.log(`✅ Binance carregado ${symbol} ${tf}: ${klines.length} candles`);
+      console.log(`✅ Binance ${symbol} ${tf}: ${klines.length} candles`);
       return klines;
     } catch (err) {
-      const status = err.response?.status || 'desconhecido';
-      console.log(`❌ Binance erro ${symbol} ${tf}: status ${status}`);
-      if (status === 451 || status === 400) {
-        console.log(`🔄 Fallback pra Bybit ${symbol} ${tf}`);
-        return fetchKlines(symbol, tf, limit, "BYBIT");
-      }
-      return [];
+      const status = err.response?.status || err.code || 'desconhecido';
+      console.log(`❌ Binance erro ${symbol} ${tf}: ${status}`);
+      console.log(`🔄 Fallback Bybit ${symbol} ${tf}`);
+      return fetchKlines(symbol, tf, limit, "BYBIT"); // fallback em qualquer erro
     }
   }
 
@@ -73,7 +56,7 @@ async function fetchKlines(symbol, tf, limit = 500, exchange = "BINANCE") {
         timeout: 20000
       });
       const klines = normalizeKlines(data.result.list);
-      console.log(`✅ Bybit carregado ${symbol} ${tf}: ${klines.length} candles`);
+      console.log(`✅ Bybit ${symbol} ${tf}: ${klines.length} candles`);
       return klines;
     } catch (err) {
       console.log(`❌ Bybit erro ${symbol} ${tf}: ${err.message}`);
