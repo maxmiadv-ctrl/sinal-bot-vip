@@ -1,4 +1,4 @@
-// fetcher.js — Binance primeiro, fallback Bybit em qualquer erro (451, timeout, network, etc.)
+// fetcher.js — Binance primeiro, fallback Bybit em qualquer erro
 
 const axios = require("axios");
 
