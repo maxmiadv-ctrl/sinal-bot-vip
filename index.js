@@ -1,4 +1,4 @@
-// index.js — Corrigido para Koyeb: webhook Telegram, endpoint spot, filtro pares, estabilidade
+// index.js — Versão final para Koyeb: webhook Telegram, fallback Bybit, filtro pares, estabilidade
 require('dotenv').config();
 const { Telegraf } = require('telegraf');
 const { fetchKlines } = require('./fetcher');
@@ -14,7 +14,7 @@ const DISCORD_VIP_CHANNEL_ID = process.env.DISCORD_VIP_CHANNEL_ID;
 
 const bot = new Telegraf(TELEGRAM_TOKEN);
 
-// Pares indesejados
+// Pares indesejados (nunca analisar ou enviar)
 const PARES_EXCLUIDOS = ['TETHERUSDT', 'EOSUSDT', 'AGIXUSDT'];
 
 // Top 50 filtrado
@@ -121,7 +121,7 @@ async function main() {
 
 main().catch(err => console.log(`❌ Erro principal: ${err.message}`));
 
-// Webhook para Telegram (Koyeb suporta)
+// Webhook para Telegram (evita erro 409)
 const PORT = process.env.PORT || 3000;
 bot.telegram.setWebhook(`https://seu-app.koyeb.app/${TELEGRAM_TOKEN}`);
 bot.startWebhook(`/${TELEGRAM_TOKEN}`, null, PORT);
