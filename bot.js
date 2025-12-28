@@ -1,103 +1,88 @@
-// bot.js — Bot oficial CRIPTO SEM CAÔ (versão nova com Telegraf)
-// - Mensagem automática no privado (/start)
-// - Botões FREE, VIP e Bybit
-// - Trava de sanidade (nunca envia mensagem vazia)
+// bot.js — Bot privado com boas-vindas + botões inline (exato como o modelo antigo)
 
 const { Telegraf } = require('telegraf');
-require('dotenv').config(); // Carrega o .env
+require('dotenv').config();
 
-const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN_FREE || process.env.TELEGRAM_TOKEN; // Usa free ou o geral
+const bot = new Telegraf(process.env.TELEGRAM_TOKEN_FREE);
 
-if (!TELEGRAM_TOKEN) {
-  throw new Error("❌ TELEGRAM_TOKEN não encontrado no .env");
-}
+const FREE_CHANNEL_LINK = "https://t.me/+seu_link_canal_free"; // MUDE PRA LINK DO CANAL FREE
+const PRIVATE_USER = process.env.PRIVATE_USER || "@maxmitrader";
+const BYBIT_LINK = process.env.BYBIT_LINK || "https://partner.bybit.com/b/49037";
 
-const bot = new Telegraf(TELEGRAM_TOKEN);
-
-// ========================
-// LINKS OFICIAIS (do .env ou fixos)
-// ========================
-const LINK_FREE = "https://t.me/+pu1aRiPMWUo3OWIx";
-const LINK_VIP_CHAT = "tg://resolve?domain=maxmitrader";
-const LINK_BYBIT = process.env.BYBIT_LINK || "https://partner.bybit.com/b/49037";
-
-// ========================
-// BOAS-VINDAS / START
-// ========================
-bot.start((ctx) => {
-  const texto =
-`👋 <b>Bem-vindo ao CRIPTO SEM CAÔ</b>
+// Mensagem de boas-vindas com botões inline
+bot.start((ctx) => ctx.reply(
+`👋 Bem-vindo ao CRIPTO SEM CAÔ
 
 Aqui você está em um ambiente:
 ✅ real
 ✅ sem promessas
 ✅ com método e responsabilidade
 
-━━━━━━━━━━━━━━━━━━
-📢 <b>SALA GRATUITA</b>
+🔹 SALA GRATUITA
 • Sinais educacionais
 • Foco em estrutura e leitura real
 • Ideal para aprender o método
 
-💎 <b>SALA VIP</b>
+🔹 SALA VIP
 • Sinais mais filtrados
 • Timeframes maiores (4h e Diário)
 • Menos trades, mais critério
 • Mentoria e acompanhamento
 
-📌 <b>Importante:</b>
-Leia sempre a <b>mensagem fixada</b> dentro das salas.
+⚠️ Importante:
+Leia sempre a mensagem fixada dentro das salas.
 
-👇 Use os botões abaixo:`;
+👇 Use os botões abaixo:`,
+{
+  reply_markup: {
+    inline_keyboard: [
+      [{ text: "🔊 Entrar na Sala Gratuita", url: FREE_CHANNEL_LINK }],
+      [{ text: "💎 Falar comigo sobre a Sala VIP", url: `https://t.me/${PRIVATE_USER.replace('@', '')}` }],
+      [{ text: "🚀 Abrir conta na Bybit", url: BYBIT_LINK }]
+    ]
+  }
+}
+));
 
-  ctx.replyWithHTML(texto, {
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "📢 Entrar na Sala Gratuita", url: LINK_FREE }],
-        [{ text: "💎 Falar comigo sobre a Sala VIP", url: LINK_VIP_CHAT }],
-        [{ text: "🚀 Abrir conta na Bybit", url: LINK_BYBIT }]
-      ]
-    }
-  });
+// Responde qualquer mensagem privada com a mesma mensagem
+bot.on('text', (ctx) => {
+  if (ctx.chat.type === 'private') {
+    ctx.reply(
+`👋 Bem-vindo ao CRIPTO SEM CAÔ
+
+Aqui você está em um ambiente:
+✅ real
+✅ sem promessas
+✅ com método e responsabilidade
+
+🔹 SALA GRATUITA
+• Sinais educacionais
+• Foco em estrutura e leitura real
+• Ideal para aprender o método
+
+🔹 SALA VIP
+• Sinais mais filtrados
+• Timeframes maiores (4h e Diário)
+• Menos trades, mais critério
+• Mentoria e acompanhamento
+
+⚠️ Importante:
+Leia sempre a mensagem fixada dentro das salas.
+
+👇 Use os botões abaixo:`,
+{
+  reply_markup: {
+    inline_keyboard: [
+      [{ text: "🔊 Entrar na Sala Gratuita", url: FREE_CHANNEL_LINK }],
+      [{ text: "💎 Falar comigo sobre a Sala VIP", url: `https://t.me/${PRIVATE_USER.replace('@', '')}` }],
+      [{ text: "🚀 Abrir conta na Bybit", url: BYBIT_LINK }]
+    ]
+  }
+}
+    );
+  }
 });
 
-// ========================
-// FUNÇÃO DE ENVIO (COM SANIDADE) — Útil para outros arquivos
-// ========================
-async function sendMessage(chatId, text, extra = {}) {
-  if (!text || typeof text !== "string" || text.trim().length === 0) {
-    console.log("⚠️ Mensagem vazia ignorada (sanidade aplicada)");
-    return false;
-  }
+bot.launch();
 
-  try {
-    await bot.telegram.sendMessage(chatId, text, {
-      parse_mode: "HTML",
-      disable_web_page_preview: true,
-      ...extra
-    });
-    return true;
-  } catch (error) {
-    console.error("Erro ao enviar mensagem:", error.message);
-    return false;
-  }
-}
-
-// ========================
-// START BOT
-// ========================
-function startBot() {
-  console.log("🤖 Bot conectado ao Telegram!");
-  bot.launch();
-  console.log("Bot iniciado com sucesso!");
-}
-
-// Para parar o bot se fechar o programa
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
-
-module.exports = {
-  bot,
-  sendMessage,
-  startBot
-};
+module.exports = { bot };
