@@ -1,5 +1,6 @@
-// fetcher.js — Somente Bybit v5, com retry e delay para evitar 403
+// fetcher.js — Bybit + proxy grátis para burlar 403 + delay
 const axios = require("axios");
+const SocksProxyAgent = require('socks-proxy-agent');
 const BYBIT_API = "https://api.bybit.com";
 
 function mapInterval(tf) {
@@ -19,13 +20,19 @@ function normalizeKlines(raw) {
   }));
 }
 
+// Proxy grátis (mude se falhar)
+const proxyUrl = "socks5://103.174.102.127:80"; // Proxy grátis público (Europa/US)
+const agent = new SocksProxyAgent(proxyUrl);
+
 async function fetchKlines(symbol, tf, limit = 500, retry = 0) {
   const safeLimit = Math.min(limit, 1500);
   const interval = mapInterval(tf);
   try {
     const { data } = await axios.get(`${BYBIT_API}/v5/market/kline`, {
       params: { category: 'linear', symbol, interval, limit: safeLimit },
-      timeout: 20000
+      timeout: 30000,
+      httpsAgent: agent,
+      proxy: false
     });
     if (!data.result || !data.result.list) {
       console.log(`❌ Bybit resposta inválida ${symbol} ${tf}`);
@@ -37,9 +44,9 @@ async function fetchKlines(symbol, tf, limit = 500, retry = 0) {
   } catch (err) {
     const status = err.response?.status || 'desconhecido';
     console.log(`❌ Bybit erro ${symbol} ${tf}: status ${status} - ${err.message}`);
-    if (retry < 3 && status === 403) {
-      console.log(`Tentando novamente (${retry+1}/3) após 10s...`);
-      await new Promise(r => setTimeout(r, 10000));
+    if (retry < 3) {
+      console.log(`Tentando novamente (${retry+1}/3) após 30s...`);
+      await new Promise(r => setTimeout(r, 30000)); // Delay maior
       return fetchKlines(symbol, tf, limit, retry + 1);
     }
     return [];
