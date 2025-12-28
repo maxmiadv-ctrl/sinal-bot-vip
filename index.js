@@ -1,119 +1,110 @@
-// index.js — LOOP PRINCIPAL 24/7 (FREE + VIP) — Versão FINAL 2025
-
-const {
-  CHAT_FREE_ID,
-  CHAT_VIP_ID,
-  LIMIT_FREE_PER_DAY,
-  LIMIT_VIP_PER_DAY,
-  MINUTES_BETWEEN_SIGNALS,
-  DIAGNOSTIC_LOG
-} = require("./config");
-
-const { bot } = require("./bot");
 require('dotenv').config();
+const { fetchKlines } = require('./fetcher');
+const { analyzeVIP, analyzeFree } = require('./analyzer');
+const { formatSignal } = require('./formatter');
+const { bot } = require('./bot');
 
-const { pickSymbol, sleep, nowBR, since } = require("./utils");
+const TELEGRAM_TOKEN_FREE = process.env.TELEGRAM_TOKEN_FREE;
+const FREE_CHANNEL_ID = process.env.FREE_CHANNEL_ID;
+const VIP_CHANNEL_ID = process.env.VIP_CHANNEL_ID;
+const BYBIT_LINK = process.env.BYBIT_LINK || "https://partner.bybit.com/b/49037";
+const PRIVATE_USER = process.env.PRIVATE_USER || "@maxmitrader";
+const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
+const DISCORD_VIP_CHANNEL_ID = process.env.DISCORD_VIP_CHANNEL_ID;
 
-const { gerarSinalFree } = require("./main");
-const { gerarSinalVip } = require("./main_vip");
-const { getReport } = require("./monitor");
-const winston = require('winston');
-const logger = winston.createLogger({
-  transports: [
-    new winston.transports.File({ filename: 'bot_logs.log' })
-  ]
-});
+const { Client, GatewayIntentBits, ChannelType } = require('discord.js');
 
+let discordClient;
+if (DISCORD_TOKEN && DISCORD_VIP_CHANNEL_ID) {
+  discordClient = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
+  discordClient.login(DISCORD_TOKEN);
+  discordClient.on('ready', () => {
+    console.log(`🤖 DISCORD VIP CONECTADO COM SUCESSO como ${discordClient.user.tag}!`);
+    console.log(`Canal VIP configurado: ${DISCORD_VIP_CHANNEL_ID}`);
+    // Removi o sendMessage aqui pra não enviar "BOT VIP ONLINE" toda vez
+  });
+} else {
+  console.log("⚠️ Discord VIP não configurado no .env");
+}
+
+const TOP_50_PAIRS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'AVAXUSDT', 'TRXUSDT', 'LINKUSDT', 'DOTUSDT', 'SHIBUSDT', 'MATICUSDT', 'BCHUSDT', 'LTCUSDT', 'TONUSDT', 'UNIUSDT', 'ICPUSDT', 'ETCUSDT', 'LEOUSDT', 'APTUSDT', 'FILUSDT', 'NEARUSDT', 'ATOMUSDT', 'RNDRUSDT', 'XLMUSDT', 'HBARUSDT', 'CROUSDT', 'GRTUSDT', 'STXUSDT', 'OPUSDT', 'INJUSDT', 'IMXUSDT', 'MKRUSDT', 'VETUSDT', 'ARBUSDT', 'KASUSDT', 'XMRUSDT', 'BGBUSDT', 'FLOKIUSDT', 'THETAUSDT', 'BSVUSDT', 'ARUSDT', 'ALGOUSDT', 'RUNEUSDT', 'LDOUSDT', 'FTMUSDT', 'FLOWUSDT', 'GALAUSDT', 'AAVEUSDT'];
+
+function shuffle(array) {
+  return array.sort(() => Math.random() - 0.5);
+}
+
+let pool = shuffle([...TOP_50_PAIRS]);
+let index = 0;
 let freeCount = 0;
 let vipCount = 0;
-let lastSignalAt = 0;
+const MAX_FREE = 25;
+const MAX_VIP = 12;
+const COOLDOWN_MIN = 15;
 
-function dateKey() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-let day = dateKey();
-
-function resetDailyIfNeeded() {
-  const k = dateKey();
-  if (k !== day) {
-    day = k;
-    freeCount = 0;
-    vipCount = 0;
-    console.log(`🗓️ Novo dia (${day}) — Contadores FREE e VIP resetados!`);
+async function sendToTelegram(channelId, message) {
+  try {
+    await bot.telegram.sendMessage(channelId, message, { parse_mode: 'Markdown' });
+    console.log(`✅ SINAL ENVIADO: ${message} | Canal: ${channelId}`);
+  } catch (err) {
+    console.log(`❌ Erro Telegram: ${err.message}`);
   }
 }
 
-async function mainLoop() {
-  const startTime = Date.now();
-  console.log("🚀 ROBÔ CRIPTO SEM CAÔ INICIADO 24/7 - VERSÃO ULTRA ASSERTIVA 2025");
-  console.log("🔥 Analisando apenas os TOP 50 pares de alta liquidez");
-  console.log("📊 Aguardando oportunidades...\n");
+async function sendToDiscord(channelId, message) {
+  try {
+    const channel = await discordClient.channels.fetch(channelId);
+    if (channel.type === ChannelType.GuildText) {
+      await channel.send(message);
+      console.log(`✅ SINAL DISCORD ENVIADO: ${message}`);
+    }
+  } catch (err) {
+    console.log(`❌ Erro Discord: ${err.message}`);
+  }
+}
 
-  setInterval(() => logger.info("Robô vivo – uptime: " + since(Date.now() - startTime)), 30 * 60 * 1000); // Log a cada 30 min
-  setInterval(getReport, 24 * 60 * 60 * 1000); // Relatório diário
+async function analyzePair(pair) {
+  console.log(`🔍 [${index + 1}] Analisando: ${pair} | ${new Date().toLocaleString('pt-BR')}`);
+  let vipSignal = await analyzeVIP(pair);
+  if (vipSignal) {
+    vipCount++;
+    if (vipCount <= MAX_VIP) {
+      const formatted = formatSignal(vipSignal, 'VIP');
+      await sendToTelegram(VIP_CHANNEL_ID, formatted);
+      if (DISCORD_TOKEN) await sendToDiscord(DISCORD_VIP_CHANNEL_ID, formatted);
+      console.log(`💎 VIP ENVIADO (${vipCount}/${MAX_VIP}) | ${pair}`);
+    }
+  }
 
-  let analyzed = 0;
-
-  while (true) {
-    try {
-      resetDailyIfNeeded();
-
-      // Cooldown entre sinais
-      const now = Date.now();
-      const waitMs = MINUTES_BETWEEN_SIGNALS * 60 * 1000 - (now - lastSignalAt);
-      if (waitMs > 0) {
-        console.log(`⏳ Cooldown: aguardando ${Math.ceil(waitMs / 60000)} minutos...`);
-        await sleep(10000);
-        continue;
-      }
-
-      const picked = await pickSymbol();
-      if (!picked) {
-        console.log("⚠️ Nenhum par disponível no momento. Recarregando pool...");
-        await sleep(15000);
-        continue;
-      }
-
-      analyzed++;
-      console.log(`\n🔍 [${analyzed}] Analisando: ${picked.symbol} | ${nowBR()}`);
-
-      // PRIORIDADE VIP (mais qualidade)
-      if (CHAT_VIP_ID && vipCount < LIMIT_VIP_PER_DAY) {
-        const vipRes = await gerarSinalVip(picked);
-        if (vipRes?.ok) {
-          vipCount++;
-          lastSignalAt = Date.now();
-          console.log(`💎 VIP ENVIADO (${vipCount}/${LIMIT_VIP_PER_DAY}) | ${picked.symbol}\n`);
-          await sleep(60000); // pausa após VIP
-          continue;
-        }
-      }
-
-      // FREE (educacional)
-      if (CHAT_FREE_ID && freeCount < LIMIT_FREE_PER_DAY) {
-        const freeRes = await gerarSinalFree(picked);
-        if (freeRes?.ok) {
-          freeCount++;
-          lastSignalAt = Date.now();
-          console.log(`📢 FREE ENVIADO (${freeCount}/${LIMIT_FREE_PER_DAY}) | ${picked.symbol}\n`);
-        }
-      }
-
-      // Status periódico
-      if (analyzed % 15 === 0) {
-        const uptime = since(Date.now() - startTime);
-        console.log(`📈 STATUS: Analisados ${analyzed} pares | Uptime ${uptime} | FREE ${freeCount}/${LIMIT_FREE_PER_DAY} | VIP ${vipCount}/${LIMIT_VIP_PER_DAY}`);
-      }
-
-      await sleep(45000); // pausa suave entre ciclos
-
-    } catch (err) {
-      console.error(`❌ ERRO NO LOOP: ${err.message}`);
-      await sleep(20000);
+  let freeSignal = await analyzeFree(pair);
+  if (freeSignal) {
+    freeCount++;
+    if (freeCount <= MAX_FREE) {
+      const formatted = formatSignal(freeSignal, 'FREE');
+      await sendToTelegram(FREE_CHANNEL_ID, formatted);
+      console.log(`📢 FREE ENVIADO (${freeCount}/${MAX_FREE}) | ${pair}`);
     }
   }
 }
 
-// INICIA O ROBÔ
-mainLoop();
+async function main() {
+  console.log(`🚀 ROBÔ CRIPTO SEM CAÔ INICIADO 24/7 - VERSÃO ULTRA ASSERTIVA 2025`);
+  console.log(`🔥 Analisando apenas os TOP 50 pares de alta liquidez`);
+  console.log(`📊 Aguardando oportunidades...`);
+
+  while (true) {
+    if (index >= pool.length) {
+      pool = shuffle([...TOP_50_PAIRS]);
+      index = 0;
+      console.log(`🔄 Pool recarregado e embaralhado: 50 pares prontos!`);
+    }
+
+    await analyzePair(pool[index]);
+    index++;
+    await new Promise(r => setTimeout(r, 30000)); // Delay 30s entre análise pra não flood
+  }
+}
+
+main().catch(err => console.log(`❌ Erro principal: ${err.message}`));
+
+process.on('SIGTERM', () => bot.stop('SIGTERM'));
+process.on('SIGINT', () => bot.stop('SIGINT'));
