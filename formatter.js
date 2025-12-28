@@ -1,37 +1,41 @@
-// formatter.js — Formato exato como antigo com icons, risk 1-2%, espaços \n
+// formatter.js — Formato EXATO como antigo (icons, texto, risk 1-2%, explicação, botão Bybit)
 
 function formatSignal(signal, type) {
-  const emoji = type === 'VIP' ? '💎' : '📢';
-  const channel = type === 'VIP' ? 'VIP' : 'FREE';
-
-  const operacao = signal.close > signal.open ? 'COMPRA' : 'VENDA'; // Exemplo simples de operação
+  const channel = type === 'VIP' ? 'VIP' : 'GRATUITO';
+  const operacao = signal.entry > signal.sl ? 'COMPRA' : 'VENDA'; // Ajuste se tiver lógica
 
   return `
-${emoji} *SINAL ${channel} APROVADO*
+⭐ *SINAL ${channel} — CRIPTO SEM CAÔ*
 
-★ Força do sinal: ★★★
+⭐ Força do sinal: ★★★
 
-📌 Par: ${signal.pair}
-🛡️ Operação: ${operacao}
-💰 Entrada: ${signal.entry.toFixed(4)}
-🛑 Stop: ${signal.sl.toFixed(4)}
-🎯 Alvo (TP1): ${signal.tp1.toFixed(4)}
-🎯 Alvo (TP2): ${signal.tp2.toFixed(4)}
-🏆 Alvo Final: ${(signal.entry * 0.96).toFixed(4)} // Ajuste se quiser
+🔴 Par: ${signal.pair}
+🟢 Operação: ${operacao}
+💰 Entrada: ${signal.entry}
+🔴 Stop: ${signal.sl}
+🟢 Alvo (TP1): ${signal.tp1}
+🟢 Alvo (TP2): ${signal.tp2}
+🏆 Alvo Final: ${signal.alvoFinal || signal.tp2}
 
-⏱ Timeframe: ${signal.tf}
-📈 Tipo: ${type === 'VIP' ? 'SWING TRADE' : 'DAY TRADE'}
+⏰ Timeframe: ${signal.tf}
+📊 Tipo: ${type === 'VIP' ? 'SWING TRADE' : 'DAY TRADE'}
 
 📖 Leitura ${channel}:
-Sinal mais filtrado (timeframes maiores).
-Distância do stop: 5.00%. Stop equilibrado para este TF. Dica: paciência e consistência transformam trades em uma casa sólida. // NOVA EXPLICAÇÃO
-RR ${signal.rr.toFixed(1)}.
+${type === 'VIP' ? 'Sinal mais filtrado (timeframes maiores).' : 'Foco em estrutura e leitura real.'}
 
-Quer operar com mais critério?
+Distância do stop: 7.00% - Stop equilibrado para este TF. Dica: paciência e consistência transformam trades em uma casa sólida. // NOVA EXPLICAÇÃO
+
+RR = ${signal.rr}
+
+💡 Quer operar com mais critério?
 A Sala VIP entrega sinais mais filtrados, timeframes maiores e mentoria.
-Informações de acesso, fale comigo no privado: @maxmitrader.
+Para informações de acesso, fale comigo no privado: @maxmitrader.
 
 📉 Gestão de risco: risque no máximo 1-2% da banca por trade.
+
+Suporte e acompanhamento no privado: @maxmitrader
+
+[🚀 Abrir conta na Bybit](https://partner.bybit.com/b/49037)
 
 Boa sorte! 🚀
   `.trim();
