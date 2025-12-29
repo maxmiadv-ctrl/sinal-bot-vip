@@ -1,3 +1,5 @@
+// formatter.js — Formato perfeito FREE e VIP (com espaços, icons, risco 1-2%)
+
 function formatFree(signal) {
   return `
 📢 *SINAL FREE APROVADO*
