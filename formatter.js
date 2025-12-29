@@ -1,4 +1,4 @@
-// formatter.js — Formato perfeito FREE e VIP (com espaços, icons, risco 1-2%)
+// formatter.js — Formato FREE e VIP (envia de verdade)
 
 function formatFree(signal) {
   return `
@@ -31,7 +31,7 @@ RR: ${signal.rr}
 Entrada: ${signal.entrada}
 TP1: ${signal.tp1}
 TP2: ${signal.tp2}
-TP Final: ${signal.tpFinal}
+TP Final: ${signal.tpFinal || signal.tp2}
 SL: ${signal.stop}
 
 Alavancagem: 10-20x (ajuste risco)
